@@ -60,6 +60,13 @@ async function run() {
       res.send(result);
     });
 
+    // get all plants from db
+    app.get("/lessons/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await LessonsColl.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
     // Get single lesson by ID (protected route - need login)
     app.get("/lessons/:id", verifyJWT, async (req, res) => {
       // CHANGE: Added verifyJWT middleware
