@@ -54,13 +54,11 @@ async function run() {
     const LessonsColl = db.collection("All_lessons");
     const userColl = db.collection("Users");
 
-    //get all lessons
     app.get("/lessons", async (req, res) => {
       const result = await LessonsColl.find().toArray();
       res.send(result);
     });
 
-    //get lessons by id
     app.get("/lessons/:id", async (req, res) => {
       const id = req.params.id;
       const result = await LessonsColl.findOne({ _id: new ObjectId(id) });
@@ -70,7 +68,6 @@ async function run() {
       res.send(result);
     });
 
-    //create lessons
     app.post("/lessons", async (req, res) => {
       const lessonsData = req.body;
       const result = await LessonsColl.insertOne(lessonsData);
@@ -118,27 +115,6 @@ async function run() {
       }
     });
 
-    // Update user to premium
-    app.patch("/users/premium/:email", async (req, res) => {
-      const email = req.params.email;
-
-      if (!email || email === "undefined") {
-        return res.status(400).send({ message: "Invalid email" });
-      }
-
-      const result = await userColl.updateOne(
-        { email: email },
-        { $set: { isPremium: true } }
-      );
-
-      if (result.matchedCount === 0) {
-        return res.status(404).send({ message: "User not found" });
-      }
-
-      res.send(result);
-    });
-
-
     //get lessons by email
 
     app.get("/my-lessons", async (req, res) => {
@@ -151,7 +127,15 @@ async function run() {
       res.send(result);
     });
 
-    
+    //delete
+
+    app.delete("/my-lessons/:id", async (req, res) => {
+      const { id } = req.params;
+      const objectid = new ObjectId(id);
+      const result = await LessonsColl.deleteOne({ _id: objectid });
+
+      res.send(result);
+    });
 
     // Ping DB
     await client.db("admin").command({ ping: 1 });
