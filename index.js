@@ -115,6 +115,22 @@ async function run() {
       }
     });
 
+    // Update user to premium
+    app.patch("/users/premium/:email", async (req, res) => {
+      const email = req.params.email;
+      if (!email || email === "undefined") {
+        return res.status(400).send({ message: "Invalid email" });
+      }
+      const result = await userColl.updateOne(
+        { email: email },
+        { $set: { isPremium: true } }
+      );
+      if (result.matchedCount === 0) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      res.send(result);
+    });
+
     //get lessons by email
 
     app.get("/my-lessons", async (req, res) => {
@@ -128,7 +144,6 @@ async function run() {
     });
 
     //delete
-
     app.delete("/my-lessons/:id", async (req, res) => {
       const { id } = req.params;
       const objectid = new ObjectId(id);
@@ -136,6 +151,7 @@ async function run() {
 
       res.send(result);
     });
+
 
     // Ping DB
     await client.db("admin").command({ ping: 1 });
