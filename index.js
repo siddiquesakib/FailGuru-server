@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const admin = require("firebase-admin");
+const stripe = require("stripe")(process.env.STRIPE_SECRECT_KEY);
 const port = process.env.PORT || 3000;
 
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
@@ -13,40 +14,33 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// middleware
+// Express App
 const app = express();
-// middleware
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://fail-guru.web.app",
-      "https://fail-guru.firebaseapp.com",
-    ],
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
     optionSuccessStatus: 200,
   })
 );
 app.use(express.json());
 
-// jwt middlewares
+// JWT Middleware
 const verifyJWT = async (req, res, next) => {
   const token = req?.headers?.authorization?.split(" ")[1];
-  console.log(token);
+
   if (!token) return res.status(401).send({ message: "Unauthorized Access!" });
   try {
     const decoded = await admin.auth().verifyIdToken(token);
     req.tokenEmail = decoded.email;
-    console.log(decoded);
     next();
   } catch (err) {
-    console.log(err);
     return res.status(401).send({ message: "Unauthorized Access!", err });
   }
 };
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+// MongoDB Setup
 const client = new MongoClient(process.env.MONGODB_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -58,33 +52,20 @@ async function run() {
   try {
     const db = client.db("fail_guru_lesson");
     const LessonsColl = db.collection("All_lessons");
+    const userColl = db.collection("Users");
 
-    // Get all public lessons (anyone can access)
     app.get("/lessons", async (req, res) => {
       const result = await LessonsColl.find().toArray();
       res.send(result);
     });
 
-    // get all plants from db
     app.get("/lessons/:id", async (req, res) => {
       const id = req.params.id;
       const result = await LessonsColl.findOne({ _id: new ObjectId(id) });
-      res.send(result);
-    });
-
-    // Get single lesson by ID (protected route - need login)
-    app.get("/lessons/:id", verifyJWT, async (req, res) => {
-      // CHANGE: Added verifyJWT middleware
-      try {
-        const id = req.params.id;
-        const result = await LessonsColl.findOne({ _id: new ObjectId(id) });
-        if (!result) {
-          return res.status(404).send({ message: "Lesson not found" });
-        }
-        res.send(result);
-      } catch (err) {
-        res.status(500).send({ message: "Server error", err });
+      if (!result) {
+        return res.status(404).send({ message: "Lesson not found" });
       }
+      res.send(result);
     });
 
     app.post("/lessons", async (req, res) => {
@@ -93,13 +74,52 @@ async function run() {
       res.send(result);
     });
 
-    // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    //users data
+    app.post("/users", async (req, res) => {
+      const userData = req.body;
+      const result = await userColl.insertOne(userData);
+      res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+      const result = await userColl.find().toArray();
+      res.send(result);
+    });
+
+    //payment method
+    app.post("/create-checkout-session", async (req, res) => {
+      const paymentInfo = req.body;
+      console.log(paymentInfo);
+
+      try {
+        const session = await stripe.checkout.sessions.create({
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                unit_amount: 11.79 * 100,
+                product_data: {
+                  name: `Your Name ${paymentInfo.name}`,
+                },
+              },
+              quantity: 1,
+            },
+          ],
+          mode: "payment",
+          success_url: `${process.env.CLIENT_DOMAIN}/payment-success?success=true`,
+        });
+        res.send({ url: session.url });
+      } catch (err) {
+        console.log(err);
+        res.send("dd");
+      }
+    });
+
+    // Ping DB
+    await client.db("admin").command({ ping: 1 });
+    console.log("MongoDB connected successfully!");
   } finally {
-    // Ensures that the client will close when you finish/error
+    // No auto-close (keeps server running)
   }
 }
 run().catch(console.dir);
@@ -109,5 +129,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Server listening on port ${port}`);
 });
