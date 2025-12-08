@@ -19,7 +19,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [process.env.CLIENT_DOMAIN],
     credentials: true,
     optionSuccessStatus: 200,
   })
@@ -99,20 +99,40 @@ async function run() {
                 currency: "usd",
                 unit_amount: 11.79 * 100,
                 product_data: {
-                  name: `Your Name ${paymentInfo.name}`,
+                  name: `Your Name ${paymentInfo?.name}`,
                 },
               },
               quantity: 1,
             },
           ],
           mode: "payment",
-          success_url: `${process.env.CLIENT_DOMAIN}/payment-success?success=true`,
+          success_url: `${process.env.CLIENT_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         });
         res.send({ url: session.url });
       } catch (err) {
         console.log(err);
         res.send("dd");
       }
+    });
+
+    // Update user to premium
+    app.patch("/users/premium/:email", async (req, res) => {
+      const email = req.params.email;
+
+      if (!email || email === "undefined") {
+        return res.status(400).send({ message: "Invalid email" });
+      }
+
+      const result = await userColl.updateOne(
+        { email: email },
+        { $set: { isPremium: true } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).send({ message: "User not found" });
+      }
+
+      res.send(result);
     });
 
     // Ping DB
