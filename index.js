@@ -104,14 +104,20 @@ async function run() {
       const result = await userColl.insertOne(userData);
       res.send(result);
     });
+    
+    //get all users
+    app.get("/users", async (req, res) => {
+      const user = await userColl.find().toArray();
+      res.send(user);
+    });
 
-  
-
+    //get users by email
     app.get("/users/:email", async (req, res) => {
       const email = req.params.email;
       const user = await userColl.findOne({ email: email });
       res.send(user);
     });
+
 
     //payment method
     app.post("/create-checkout-session", async (req, res) => {
@@ -155,6 +161,18 @@ async function run() {
       if (result.matchedCount === 0) {
         return res.status(404).send({ message: "User not found" });
       }
+      res.send(result);
+    });
+
+    // Update user to premium
+    app.patch("/users/premium/cancel/:email", async (req, res) => {
+      const email = req.params.email;
+
+      const result = await userColl.updateOne(
+        { email: email },
+        { $set: { isPremium: false } }
+      );
+
       res.send(result);
     });
 
