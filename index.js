@@ -200,7 +200,14 @@ async function run() {
 
     // Add to favorites
     app.post("/favorites", async (req, res) => {
-      const { userEmail, lessonId, lessonTitle, lessonImage } = req.body;
+      const {
+        userEmail,
+        lessonId,
+        lessonTitle,
+        lessonImage,
+        lessonCategory,
+        lessonTone,
+      } = req.body;
 
       try {
         // Check if already favorited
@@ -215,6 +222,8 @@ async function run() {
           lessonId: new ObjectId(lessonId),
           lessonTitle,
           lessonImage,
+          lessonCategory,
+          lessonTone,
           createdAt: new Date().toISOString(),
         };
         const result = await favoritesColl.insertOne(favoriteData);
@@ -296,6 +305,38 @@ async function run() {
       });
 
       res.send({ isFavorited: !!result });
+    });
+
+    // Toggle like (add/remove user email from likes[] and inc/dec likesCount)
+    app.patch("/lessons/:id/like", async (req, res) => {
+      try {
+        const lessonId = req.params.id;
+        const { userEmail } = req.body; // send { userEmail } from client
+        if (!userEmail)
+          return res.status(400).send({ message: "Missing userEmail" });
+
+        const objectId = new ObjectId(lessonId);
+
+        // Get current doc
+        const lesson = await LessonsColl.findOne({ _id: objectId });
+        if (!lesson)
+          return res.status(404).send({ message: "Lesson not found" });
+
+        const alreadyLiked =
+          Array.isArray(lesson.likes) && lesson.likes.includes(userEmail);
+
+        const update = alreadyLiked
+          ? { $pull: { likes: userEmail }, $inc: { likesCount: -1 } }
+          : { $addToSet: { likes: userEmail }, $inc: { likesCount: 1 } };
+
+        await LessonsColl.updateOne({ _id: objectId }, update);
+
+        const updated = await LessonsColl.findOne({ _id: objectId });
+        res.send(updated);
+      } catch (err) {
+        console.error("Toggle like error:", err);
+        res.status(500).send({ error: "Failed to toggle like" });
+      }
     });
 
     // Ping DB
