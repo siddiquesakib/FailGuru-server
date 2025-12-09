@@ -77,6 +77,24 @@ async function run() {
     //users data
     app.post("/users", async (req, res) => {
       const userData = req.body;
+
+      userData.role = "user";
+      userData.isPremium = false;
+      userData.totalLessonsCreated = 0;
+      userData.totalLessonsSaved = 0;
+      userData.createdAt = new Date().toISOString();
+      userData.updatedAt = new Date().toISOString();
+
+      const query = { email: userData.email };
+      const alreadyHere = await userColl.findOne(query);
+
+      if (alreadyHere) {
+        // Already exists - just update login time
+        const result = await userColl.updateOne(query, {
+          $set: { updatedAt: new Date().toISOString() },
+        });
+        return res.send(result);
+      }
       const result = await userColl.insertOne(userData);
       res.send(result);
     });
@@ -152,6 +170,28 @@ async function run() {
       res.send(result);
     });
 
+    //update
+    app.patch("/my-lessons/:id", async (req, res) => {
+      const { id } = req.params;
+      const objectid = new ObjectId(id);
+      const updateData = req.body;
+
+      const update = {
+        $set: {
+          title: updateData.title,
+          description: updateData.description,
+          category: updateData.category,
+          emotionalTone: updateData.emotionalTone,
+          image: updateData.image,
+          privacy: updateData.privacy,
+          accessLevel: updateData.accessLevel,
+          updatedDate: new Date().toISOString(),
+        },
+      };
+
+      const result = await LessonsColl.updateOne({ _id: objectid }, update);
+      res.send(result);
+    });
 
     // Ping DB
     await client.db("admin").command({ ping: 1 });
