@@ -54,6 +54,7 @@ async function run() {
     const LessonsColl = db.collection("All_lessons");
     const userColl = db.collection("Users");
     const favoritesColl = db.collection("favorites");
+    const reportsColl = db.collection("Reports");
 
     //get all lessons
     app.get("/lessons", async (req, res) => {
@@ -336,6 +337,149 @@ async function run() {
       } catch (err) {
         console.error("Toggle like error:", err);
         res.status(500).send({ error: "Failed to toggle like" });
+      }
+    });
+
+    // Add Report Route
+    app.post("/reports", async (req, res) => {
+      const { lessonId, lessonTitle, reporterEmail, reporterName, reason } =
+        req.body;
+
+      try {
+        // Check if user already reported this lesson
+        const existingReport = await reportsColl.findOne({
+          lessonId: new ObjectId(lessonId),
+          reporterEmail: reporterEmail,
+        });
+
+        if (existingReport) {
+          return res
+            .status(400)
+            .send({ message: "You have already reported this lesson" });
+        }
+
+        const reportData = {
+          lessonId: new ObjectId(lessonId),
+          lessonTitle,
+          reporterEmail,
+          reporterName,
+          reason,
+          status: "pending",
+          timestamp: new Date().toISOString(),
+        };
+
+        const result = await reportsColl.insertOne(reportData);
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to submit report" });
+      }
+    });
+
+    // Get all reports (for admin)
+    app.get("/reports", async (req, res) => {
+      const result = await reportsColl.find().sort({ timestamp: -1 }).toArray();
+      res.send(result);
+    });
+
+    // Get reports for a specific lesson
+    app.get("/reports/lesson/:lessonId", async (req, res) => {
+      const { lessonId } = req.params;
+
+      const result = await reportsColl
+        .find({ lessonId: new ObjectId(lessonId) })
+        .sort({ timestamp: -1 })
+        .toArray();
+
+      res.send(result);
+    });
+
+    // Update report status (for admin)
+    app.patch("/reports/:reportId", async (req, res) => {
+      const { reportId } = req.params;
+      const { status } = req.body; // "pending", "ignored", "resolved"
+
+      try {
+        const result = await reportsColl.updateOne(
+          { _id: new ObjectId(reportId) },
+          { $set: { status, updatedAt: new Date().toISOString() } }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Report not found" });
+        }
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to update report" });
+      }
+    });
+
+    // In your server index.js - add these routes
+
+    const commentsColl = db.collection("comments"); // Add this in run()
+
+    // Post a comment
+    app.post("/comments", async (req, res) => {
+      const { lessonId, userEmail, userName, userPhoto, comment } = req.body;
+
+      try {
+        const commentData = {
+          lessonId: new ObjectId(lessonId),
+          userEmail,
+          userName,
+          userPhoto,
+          comment,
+          createdAt: new Date().toISOString(),
+        };
+
+        const result = await commentsColl.insertOne(commentData);
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to post comment" });
+      }
+    });
+
+    // Get comments for a lesson
+    app.get("/comments/:lessonId", async (req, res) => {
+      const { lessonId } = req.params;
+
+      const result = await commentsColl
+        .find({ lessonId: new ObjectId(lessonId) })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      res.send(result);
+    });
+
+    // Delete comment (only by comment owner)
+    app.delete("/comments/:commentId", async (req, res) => {
+      const { commentId } = req.params;
+      const { userEmail } = req.query;
+
+      try {
+        const comment = await commentsColl.findOne({
+          _id: new ObjectId(commentId),
+        });
+
+        if (!comment) {
+          return res.status(404).send({ message: "Comment not found" });
+        }
+
+        if (comment.userEmail !== userEmail) {
+          return res.status(403).send({ message: "Unauthorized" });
+        }
+
+        const result = await commentsColl.deleteOne({
+          _id: new ObjectId(commentId),
+        });
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Failed to delete comment" });
       }
     });
 
