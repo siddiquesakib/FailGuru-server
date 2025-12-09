@@ -55,6 +55,7 @@ async function run() {
     const userColl = db.collection("Users");
     const favoritesColl = db.collection("favorites");
     const reportsColl = db.collection("Reports");
+    const commentsColl = db.collection("comments");
 
     //get all lessons
     app.get("/lessons", async (req, res) => {
@@ -104,10 +105,12 @@ async function run() {
       res.send(result);
     });
 
-    //get all user
-    app.get("/users", async (req, res) => {
-      const result = await userColl.find().toArray();
-      res.send(result);
+  
+
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await userColl.findOne({ email: email });
+      res.send(user);
     });
 
     //payment method
@@ -156,7 +159,6 @@ async function run() {
     });
 
     //get lessons by email
-
     app.get("/my-lessons", async (req, res) => {
       const email = req.query.email;
       const query = {};
@@ -308,7 +310,6 @@ async function run() {
       res.send({ isFavorited: !!result });
     });
 
-    // Toggle like (add/remove user email from likes[] and inc/dec likesCount)
     app.patch("/lessons/:id/like", async (req, res) => {
       try {
         const lessonId = req.params.id;
@@ -416,10 +417,6 @@ async function run() {
       }
     });
 
-    // In your server index.js - add these routes
-
-    const commentsColl = db.collection("comments"); // Add this in run()
-
     // Post a comment
     app.post("/comments", async (req, res) => {
       const { lessonId, userEmail, userName, userPhoto, comment } = req.body;
@@ -451,6 +448,11 @@ async function run() {
         .sort({ createdAt: -1 })
         .toArray();
 
+      res.send(result);
+    });
+
+    app.get("/comments", async (req, res) => {
+      const result = await commentsColl.find().toArray();
       res.send(result);
     });
 
