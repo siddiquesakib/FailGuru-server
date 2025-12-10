@@ -104,7 +104,7 @@ async function run() {
       const result = await userColl.insertOne(userData);
       res.send(result);
     });
-    
+
     //get all users
     app.get("/users", async (req, res) => {
       const user = await userColl.find().toArray();
@@ -117,7 +117,6 @@ async function run() {
       const user = await userColl.findOne({ email: email });
       res.send(user);
     });
-
 
     //payment method
     app.post("/create-checkout-session", async (req, res) => {
@@ -500,6 +499,21 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).send({ error: "Failed to delete comment" });
+      }
+    });
+
+    // Get user role by email
+    app.get("/user/role/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const user = await userColl.findOne({ email: email });
+        if (!user) {
+          return res.status(404).send({ role: "user" });
+        }
+        res.send({ role: user.role || "user" });
+      } catch (err) {
+        console.log(err);
+        res.status(500).send({ role: "user" });
       }
     });
 
