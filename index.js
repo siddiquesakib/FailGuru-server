@@ -75,9 +75,24 @@ async function run() {
 
     //post lessons
     app.post("/lessons", async (req, res) => {
-      const lessonsData = req.body;
-      const result = await LessonsColl.insertOne(lessonsData);
-      res.send(result);
+      try {
+        const lessonsData = req.body;
+        const creatorEmail = lessonsData.creatorEmail; // Get email from lesson data
+
+        // Insert the lesson
+        const result = await LessonsColl.insertOne(lessonsData);
+
+        // Increment user's totalLessonsCreated
+        await userColl.updateOne(
+          { email: creatorEmail },
+          { $inc: { totalLessonsCreated: 1 } }
+        );
+
+        res.send({ success: true, result });
+      } catch (err) {
+        console.log(err);
+        res.status(500).send({ error: "Failed to create lesson" });
+      }
     });
 
     //users data
@@ -188,11 +203,23 @@ async function run() {
 
     //delete
     app.delete("/my-lessons/:id", async (req, res) => {
-      const { id } = req.params;
-      const objectid = new ObjectId(id);
-      const result = await LessonsColl.deleteOne({ _id: objectid });
+      try {
+        const { id } = req.params;
+        const objectid = new ObjectId(id);
+        const result = await LessonsColl.deleteOne({ _id: objectid });
 
-      res.send(result);
+        res.send(result);
+
+        // Decrement user's totalLessonsCreate
+        await userColl.updateOne(
+          { email: userEmail },
+          { $inc: { totalLessonsCreated: -1 } }
+        );
+
+        res.send({ success: true });
+      } catch (err) {
+        console.log(err);
+      }
     });
 
     //update
@@ -394,7 +421,7 @@ async function run() {
       }
     });
 
-    // Get all reports (for admin)
+    // Get all reports
     app.get("/reports", async (req, res) => {
       const result = await reportsColl.find().sort({ timestamp: -1 }).toArray();
       res.send(result);
