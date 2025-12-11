@@ -178,7 +178,7 @@ async function run() {
       res.send(result);
     });
 
-    // Update user to premium
+    // cancle user to premium to user
     app.patch("/users/premium/cancel/:email", async (req, res) => {
       const email = req.params.email;
 
@@ -201,7 +201,7 @@ async function run() {
       res.send(result);
     });
 
-    //delete
+    //delete my lessons
     app.delete("/my-lessons/:id", async (req, res) => {
       try {
         const { id } = req.params;
@@ -541,6 +541,20 @@ async function run() {
       } catch (err) {
         console.log(err);
         res.status(500).send({ role: "user" });
+      }
+    });
+
+    //update user to admin
+    app.patch("/users/update/admin/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const result = await userColl.updateOne(
+          { email: email },
+          { $set: { role: "admin" } }
+        );
+        res.send(result);
+      } catch (err) {
+        console.log(err);
       }
     });
 
