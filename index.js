@@ -558,6 +558,22 @@ async function run() {
       }
     });
 
+    //update lesson isFeatured false to true
+    app.patch("/admin/lesson/isFeatured/toggle/:id", async (req, res) => {
+      const { id } = req.params;
+      const objectid = new ObjectId(id);
+
+      const lesson = await LessonsColl.findOne({ _id: objectid });
+      const newStatus = !lesson.isFeatured;
+
+      await LessonsColl.updateOne(
+        { _id: objectid },
+        { $set: { isFeatured: newStatus } }
+      );
+
+      res.json({ success: true, isFeatured: newStatus });
+    });
+
     // Ping DB
     await client.db("admin").command({ ping: 1 });
     console.log("MongoDB connected successfully!");
