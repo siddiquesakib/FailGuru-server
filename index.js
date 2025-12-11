@@ -209,7 +209,6 @@ async function run() {
         const result = await LessonsColl.deleteOne({ _id: objectid });
 
         res.send(result);
-
         // Decrement user's totalLessonsCreate
         await userColl.updateOne(
           { email: userEmail },
