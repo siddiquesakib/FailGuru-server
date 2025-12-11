@@ -178,7 +178,7 @@ async function run() {
       res.send(result);
     });
 
-    // cancle user to premium to user
+    // Update user to premium
     app.patch("/users/premium/cancel/:email", async (req, res) => {
       const email = req.params.email;
 
@@ -386,30 +386,40 @@ async function run() {
 
     // Add Report Route
     app.post("/reports", async (req, res) => {
-      const { lessonId, lessonTitle, reporterEmail, reporterName, reason } =
-        req.body;
+      const { lessonId, lessonTitle, reporterEmail, reason } = req.body;
 
       try {
-        // Check if user already reported this lesson
+        const objectId = new ObjectId(lessonId);
         const existingReport = await reportsColl.findOne({
-          lessonId: new ObjectId(lessonId),
-          reporterEmail: reporterEmail,
+          lessonId: objectId,
         });
 
         if (existingReport) {
-          return res
-            .status(400)
-            .send({ message: "You have already reported this lesson" });
+          if (existingReport.reporters.some((r) => r.email === reporterEmail)) {
+            return res
+              .status(400)
+              .send({ message: "You have already reported this lesson" });
+          }
+
+          await reportsColl.updateOne(
+            { lessonId: objectId },
+            {
+              $push: {
+                reporters: { email: reporterEmail },
+                reasons: { reason },
+              },
+            }
+          );
+          return res.send({ success: true, message: "Report added" });
         }
 
         const reportData = {
-          lessonId: new ObjectId(lessonId),
+          lessonId: objectId,
           lessonTitle,
-          reporterEmail,
-          reporterName,
-          reason,
+          reporters: [{ email: reporterEmail }],
+          reasons: [{ reason }],
           status: "pending",
-          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         };
 
         const result = await reportsColl.insertOne(reportData);
@@ -463,7 +473,6 @@ async function run() {
     // Post a comment
     app.post("/comments", async (req, res) => {
       const { lessonId, userEmail, userName, userPhoto, comment } = req.body;
-
       try {
         const commentData = {
           lessonId: new ObjectId(lessonId),
@@ -473,7 +482,6 @@ async function run() {
           comment,
           createdAt: new Date().toISOString(),
         };
-
         const result = await commentsColl.insertOne(commentData);
         res.send({ success: true, result });
       } catch (error) {
@@ -499,7 +507,7 @@ async function run() {
       res.send(result);
     });
 
-    // Delete comment (only by comment owner)
+    // Delete comment
     app.delete("/comments/:commentId", async (req, res) => {
       const { commentId } = req.params;
       const { userEmail } = req.query;
@@ -571,6 +579,20 @@ async function run() {
       );
 
       res.json({ success: true, isFeatured: newStatus });
+    });
+
+    // DELETE single report
+    app.delete("/reports/:id", async (req, res) => {
+      await reportsColl.deleteOne({ _id: new ObjectId(req.params.id) });
+      res.json({ success: true });
+    });
+
+    // DELETE lesson + all its reports
+    app.delete("/admin/lessons/:lessonId/with-reports", async (req, res) => {
+      const id = new ObjectId(req.params.lessonId);
+      await LessonsColl.deleteOne({ _id: id });
+      await reportsColl.deleteMany({ lessonId: id });
+      res.json({ success: true });
     });
 
     // Ping DB
