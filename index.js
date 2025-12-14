@@ -607,8 +607,8 @@ async function run() {
     });
 
     // Ping DB
-    await client.db("admin").command({ ping: 1 });
-    console.log("MongoDB connected successfully!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("MongoDB connected successfully!");
   } finally {
     // No auto-close (keeps server running)
   }
