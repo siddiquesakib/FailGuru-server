@@ -99,7 +99,7 @@ async function run() {
     app.post("/users", async (req, res) => {
       const userData = req.body;
 
-      userData.role = "user";
+      userData.role = "admin";
       userData.isPremium = false;
       userData.totalLessonsCreated = 0;
       userData.totalLessonsSaved = 0;
@@ -507,7 +507,7 @@ async function run() {
       res.send(result);
     });
 
-    // Delete comment
+    // Delete comment (only by comment owner)
     app.delete("/comments/:commentId", async (req, res) => {
       const { commentId } = req.params;
       const { userEmail } = req.query;
@@ -563,6 +563,17 @@ async function run() {
       } catch (err) {
         console.log(err);
       }
+    });
+
+    //update user profile by email
+    app.patch("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const { name, photoURL } = req.body;
+      const result = await userColl.updateOne(
+        { email },
+        { $set: { name, photoURL, updatedAt: new Date().toISOString() } }
+      );
+      res.send(result);
     });
 
     //update lesson isFeatured false to true
