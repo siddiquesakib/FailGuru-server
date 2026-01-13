@@ -99,7 +99,7 @@ async function run() {
     app.post("/users", async (req, res) => {
       const userData = req.body;
 
-      userData.role = "admin";
+      userData.role = "user";
       userData.isPremium = false;
       userData.totalLessonsCreated = 0;
       userData.totalLessonsSaved = 0;
